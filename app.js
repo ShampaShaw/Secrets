@@ -10,6 +10,7 @@ const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const flash = require('connect-flash');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const FacebookStrategy = require("passport-facebook").Strategy;
 const findOrCreate = require('mongoose-findorcreate');
 
 const app = express();
@@ -47,7 +48,8 @@ mongoose.connect("mongodb://127.0.0.1:27017/userDB", { useUnifiedTopology : true
 
 const userSchema = new mongoose.Schema({
     email: String,
-    password: String
+    password: String,
+    googleId: String
 });
 
 //userSchema.plugin(passportLocalMongoose, { usernameField: 'email', errorMessages : { UserExistsError : 'A user with the given email is already registered.' } });
@@ -66,7 +68,7 @@ passport.serializeUser(function(user, done) {
   
   passport.deserializeUser(function(id, done) {
     User.findById(id, function(err, user) {
-      if (err) { return cb(err); }
+      if (err) { return done(err); }
       return done(null, user);
     });
   });
@@ -77,14 +79,26 @@ passport.use(new GoogleStrategy({
     callbackURL: "http://localhost:3000/auth/google/secrets",
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
   },
-  function(accessToken, refreshToken, profile, cb) {
+  function(accessToken, refreshToken, profile, done) {
 
     console.log(profile);
-    User.findOrCreate({googleId: profile.id }, function (err, user) {
-      return cb(err, user);
+    User.findOrCreate({ username: profile.displayName, googleId: profile.id }, function (err, user) {
+      return done(err, user);
     });
   }
 ));
+
+/*passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_APP_ID,
+    clientSecret: process.env.FACEBOOK_APP_SECRET,
+    callbackURL: "http://localhost:3000/auth/facebook/secret"
+  },
+  function(accessToken, refreshToken, profile, done) {
+    User.findOrCreate({ facebookId: profile.id }, function (err, user) {
+      return done(err, user);
+    });
+  }
+));*/
 
 app.get("/",function(req,res){
     res.render("home");
@@ -101,6 +115,16 @@ app.get('/auth/google/secrets',
     res.redirect('/secrets');
   });
 
+  /*app.get('/auth/facebook',
+  passport.authenticate('facebook'),{ scope:['profile email']});
+
+app.get('/auth/facebook/secret',
+  passport.authenticate('facebook', { failureRedirect: '/login' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/secrets');
+  });
+*/
 app.get("/login",function(req,res){
     res.render("login");
 });
@@ -159,6 +183,8 @@ app.post("/login",function(req,res){
     });
 
 });  
+
+module.exports = express();
 
 app.listen(3000,function(){
     console.log("Server Started on port 3000");
