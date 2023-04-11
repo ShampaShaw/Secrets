@@ -49,7 +49,8 @@ mongoose.connect("mongodb://127.0.0.1:27017/userDB", { useUnifiedTopology : true
 const userSchema = new mongoose.Schema({
     email: String,
     password: String,
-    googleId: String
+    googleId: String,
+    secret: String
 });
 
 //userSchema.plugin(passportLocalMongoose, { usernameField: 'email', errorMessages : { UserExistsError : 'A user with the given email is already registered.' } });
@@ -134,12 +135,42 @@ app.get("/register",function(req,res){
 });
 
 app.get("/secrets",function(req,res){
+   User.find({"secret": {$ne: null}})
+   .then(function(foundUsers){
+        res.render("secrets", {userWithSecrets: foundUsers});
+   })
+   .catch(function(err){
+        console.log(err);
+   })
+});
+
+app.get("/submit",function(req,res){
     if(req.isAuthenticated()){
-        res.render("secrets");
+        res.render("submit");
     }
     else{
         res.redirect("/login");
     }
+});
+
+app.post("/submit", function(req,res){
+    const submittedSecret = req.body.secret;
+
+    console.log(req.user.id);
+
+    User.findById(req.user.id, function(err, foundUser){
+        if(err){
+            console.log(err);
+        }
+        else{
+        if(foundUser)
+        foundUser.secret = submittedSecret;
+
+        foundUser.save().then(function(){
+            res.redirect("/secrets");
+        })
+        }
+    });
 });
 
 app.get("/logout",function(req,res){
